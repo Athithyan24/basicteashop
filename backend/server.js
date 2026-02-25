@@ -2,14 +2,29 @@ import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 
 dotenv.config();
+
+mongoose.connect(process.env.MONGO_URI)
+.then(()=>console.log("connected Successfully"))
+.catch((err)=>console.log("failed to connect"));
+
+const itemSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  price: { type: Number, required: true },
+  quantity: { type: Number, required: true }
+});
+
+const Item = mongoose.model("Item", itemSchema);
 
 const app = express();
 const PORT = 5000;
 const SECRET_KEY = process.env.SECRET_KEY;
 app.use(cors());
 app.use(express.json());
+
+
 
 const Users = [
   { id: 1, username: "a", password: "a" },
@@ -34,6 +49,28 @@ app.post("/backend/server", (req, res) => {
     res.status(200).json({ message: "Login Sucessful!", token });
   } else {
     res.status(400).json({ message: "Invalid username or password" });
+  }
+});
+
+app.get('/app/inventory', async(req, res)=>{
+  try{
+    await Item.find();
+    res.status(200).json(Item);
+  }
+  catch{
+    res.status(500).json({message:"Can't find the item",error})
+  }
+})
+
+app.post('/app/inventory', async (req, res)=>{
+  try{
+      const {name, price, quantity}=req.body
+      const newItem=new Item({ name, price, quantity });
+      await newItem.save();
+      res.status(200).json("Saved item successfully")
+  }
+  catch{
+    res.status(500).json({message:"Error saving item", error})
   }
 });
 app.listen(PORT, () => {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import settingsicon from '../src/assets/cogwheel.png'
 
 const AdminPage = () => {
   const navigate = useNavigate();
@@ -9,6 +10,7 @@ const AdminPage = () => {
     { id: 2, name: 'Black Tea', price: 12.00, quantity: 30 }
   ]);
 
+  const [adminName, setAdminName]=useState('');
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
   const [newItemQuantity, setNewItemQuantity] = useState(0);
@@ -17,7 +19,7 @@ const AdminPage = () => {
 
   const handleAddItem = (e) => {
     e.preventDefault();
-    if (!newItemName || !newItemPrice) return;
+    if (!adminName || !newItemName || !newItemPrice) return;
 
     const newItem = {
       id: Date.now(),
@@ -49,91 +51,135 @@ const AdminPage = () => {
   };
 
   return (
-    <div style={{ maxWidth: '600px', margin: '40px auto', fontFamily: 'sans-serif', position: 'relative' }}>
+    <div className="max-w-150 mx-auto my-10 font-sans relative">
       
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #ccc', paddingBottom: '10px', marginBottom: '20px' }}>
-        <div>
-          <h1 style={{ margin: 0 }}>Admin Dashboard</h1>
-          <p style={{ margin: 0, color: 'gray' }}>Welcome, InfoZenX Manager</p>
+  {/* Header Section */}
+  <div className="flex justify-between items-center border-b-2 border-gray-300 pb-3 mb-5">
+    <div>
+      <h1 className="m-0 text-3xl font-bold">{adminName} Dashboard</h1>
+      <p className="m-0 text-gray-500">Welcome, InfoZenX Manager</p>
+    </div>
+    
+    <div className="flex items-center gap-4">
+      <button 
+        onClick={() => setIsModalOpen(true)} 
+        className="bg-transparent border-none text-2xl cursor-pointer hover:scale-110 transition-transform"
+        title="Add New Stock Item"
+      >
+        <img src={settingsicon} className="w-10" alt="Settings" />
+      </button>
+
+      <button 
+        onClick={handleLogout} 
+        className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+      >
+        Logout
+      </button>
+    </div>
+  </div>
+
+  <h3 className="text-xl font-semibold mb-3">Current Stock</h3>
+  <div className="flex flex-col gap-3">
+    {inventory.map((item) => (
+      <div key={item.id} className="flex justify-between items-center p-3 border border-gray-300 rounded-md shadow-sm">
+        
+        <strong className="text-lg w-1/3">{item.name}</strong>
+        
+        <div className="flex-1">
+          <div className="text-gray-500 text-sm">Price: ${item.price.toFixed(2)}</div>
         </div>
         
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+        <div className="flex items-center gap-4">
+          <span className="text-lg font-bold">Qty: {item.quantity}</span>
+          <div className="flex gap-1.5">
+            <button 
+              onClick={() => updateQuantity(item.id, -1)} 
+              className="px-3 py-1 text-base border border-gray-300 rounded hover:bg-gray-100 transition-colors"
+            >
+              -
+            </button>
+            <button 
+              onClick={() => updateQuantity(item.id, 1)} 
+              className="px-3 py-1 text-base border border-gray-300 rounded hover:bg-gray-100 transition-colors"
+            >
+              +
+            </button>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+
+  {isModalOpen && (
+    <div className="fixed inset-0 w-screen h-screen bg-black/60 flex justify-center items-center z-50">
+      <div className="bg-white p-6 rounded-lg w-[90%] max-w-100 shadow-xl">
+        
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="m-0 text-xl font-bold">Add New Stock Item</h3>
           <button 
-            onClick={() => setIsModalOpen(true)} 
-            style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}
-            title="Add New Stock Item"
+            onClick={() => setIsModalOpen(false)} 
+            className="bg-red-600 border-none text-xl cursor-pointer text-red-500 hover:text-red-700"
           >
-            ⚙️
-          </button>
-
-          <button onClick={handleLogout} style={{ padding: '8px 15px', backgroundColor: '#ff4d4d', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '4px' }}>
-            Logout
+            ✖
           </button>
         </div>
-      </div>
 
-      <h3>Current Stock</h3>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {inventory.map((item) => (
-          <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', border: '1px solid #ddd', borderRadius: '5px' }}>
-            <div style={{ flex: 1 }}>
-              <strong style={{ fontSize: '18px' }}>{item.name}</strong>
-              <div style={{ color: 'gray', fontSize: '14px' }}>Price: ${item.price.toFixed(2)}</div>
+        <form onSubmit={handleAddItem} className="flex flex-col gap-4">
+          <div>
+            <label className="block mb-1 text-sm font-medium">Enter Your Shop Name:</label>
+            <input 
+              type="text" 
+              value={adminName} 
+              onChange={(e) => setAdminName(e.target.value)} 
+              required 
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400" 
+            />
+            <label className="block mb-1 text-sm font-medium">Item Name:</label>
+            <input 
+              type="text" 
+              value={newItemName} 
+              onChange={(e) => setNewItemName(e.target.value)} 
+              required 
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400" 
+            />
+          </div>
+          
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block mb-1 text-sm font-medium">Price ($):</label>
+              <input 
+                type="number" 
+                step="0.01" 
+                value={newItemPrice} 
+                onChange={(e) => setNewItemPrice(e.target.value)} 
+                required 
+                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400" 
+              />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-              <span style={{ fontSize: '18px', fontWeight: 'bold' }}>Qty: {item.quantity}</span>
-              <div style={{ display: 'flex', gap: '5px' }}>
-                <button onClick={() => updateQuantity(item.id, -1)} style={{ padding: '5px 12px', fontSize: '16px', cursor: 'pointer', borderRadius: '4px', border: '1px solid #ccc' }}>-</button>
-                <button onClick={() => updateQuantity(item.id, 1)} style={{ padding: '5px 12px', fontSize: '16px', cursor: 'pointer', borderRadius: '4px', border: '1px solid #ccc' }}>+</button>
-              </div>
+            <div className="flex-1">
+              <label className="block mb-1 text-sm font-medium">Initial Qty:</label>
+              <input 
+                type="number" 
+                value={newItemQuantity} 
+                onChange={(e) => setNewItemQuantity(e.target.value)} 
+                required 
+                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400" 
+              />
             </div>
           </div>
-        ))}
+
+          <button 
+            type="submit" 
+            className="p-2.5 bg-green-500 text-white rounded cursor-pointer text-base mt-2 hover:bg-green-600 transition-colors"
+          >
+            Save Item
+          </button>
+        </form>
       </div>
-
-      {isModalOpen && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-          backgroundColor: 'rgba(0, 0, 0, 0.6)', 
-          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'white', padding: '25px', borderRadius: '8px', 
-            width: '90%', maxWidth: '400px', boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-              <h3 style={{ margin: 0 }}>Add New Stock Item</h3>
-              <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: 'red' }}>
-                ✖
-              </button>
-            </div>
-
-            <form onSubmit={handleAddItem} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Item Name:</label>
-                <input type="text" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} required style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }} />
-              </div>
-              
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Price ($):</label>
-                  <input type="number" step="0.01" value={newItemPrice} onChange={(e) => setNewItemPrice(e.target.value)} required style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Initial Qty:</label>
-                  <input type="number" value={newItemQuantity} onChange={(e) => setNewItemQuantity(e.target.value)} required style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }} />
-                </div>
-              </div>
-
-              <button type="submit" style={{ padding: '10px', backgroundColor: '#4CAF50', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '4px', fontSize: '16px', marginTop: '5px' }}>
-                Save Item
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
     </div>
+  )}
+
+</div>
   );
 };
 

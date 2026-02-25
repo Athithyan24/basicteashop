@@ -26,7 +26,7 @@ const LoginPage = () => {
         if (data.token) {
           localStorage.setItem("authToken", data.token);
         }
-        navigate("/Admin");
+        navigate("/admin");
       } else {
         setError(data.message || "Invalid username or password.");
       }
