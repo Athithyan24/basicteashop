@@ -2,8 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import "./App.css";
 import LoginPage from "../frontend/loginpage";
 import ProtectedRoute from "../frontend/ProtectedRouts";
-
-const AdminPage = () => <h2>Welcome to the Admin Dashboard!</h2>;
+import Admin from "../frontend/admin";
 
 function App() {
   return (
@@ -15,7 +14,7 @@ function App() {
             path="/admin"
             element={
               <ProtectedRoute>
-                <AdminPage />
+                <Admin />
               </ProtectedRoute>
             }
           />
