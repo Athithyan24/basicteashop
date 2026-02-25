@@ -6,14 +6,15 @@ import mongoose from "mongoose";
 
 dotenv.config();
 
-mongoose.connect(process.env.MONGO_URI)
-.then(()=>console.log("connected Successfully"))
-.catch((err)=>console.log("failed to connect"));
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("connected Successfully"))
+  .catch((err) => console.log("failed to connect"));
 
 const itemSchema = new mongoose.Schema({
   name: { type: String, required: true },
   price: { type: Number, required: true },
-  quantity: { type: Number, required: true }
+  quantity: { type: Number, required: true },
 });
 
 const Item = mongoose.model("Item", itemSchema);
@@ -23,8 +24,6 @@ const PORT = 5000;
 const SECRET_KEY = process.env.SECRET_KEY;
 app.use(cors());
 app.use(express.json());
-
-
 
 const Users = [
   { id: 1, username: "a", password: "a" },
@@ -52,27 +51,40 @@ app.post("/backend/server", (req, res) => {
   }
 });
 
-app.get('/app/inventory', async(req, res)=>{
-  try{
+app.get("/app/inventory", async (req, res) => {
+  try {
     await Item.find();
     res.status(200).json(Item);
-  }
-  catch{
-    res.status(500).json({message:"Can't find the item",error})
-  }
-})
-
-app.post('/app/inventory', async (req, res)=>{
-  try{
-      const {name, price, quantity}=req.body
-      const newItem=new Item({ name, price, quantity });
-      await newItem.save();
-      res.status(200).json("Saved item successfully")
-  }
-  catch{
-    res.status(500).json({message:"Error saving item", error})
+  } catch {
+    res.status(500).json({ message: "Can't find the item", error });
   }
 });
+
+app.post("/app/inventory", async (req, res) => {
+  try {
+    const { name, price, quantity } = req.body;
+    const newItem = new Item({ name, price, quantity });
+    await newItem.save();
+    res.status(200).json("Saved item successfully");
+  } catch {
+    res.status(500).json({ message: "Error saving item", error });
+  }
+});
+
+app.put("/app/inventory", async (req, res) => {
+  try {
+    const item = await item.findById(req.params.id);
+    if (!item) return res.status(400).json({ message: "item not found" });
+
+    item.quantity += req.body.amount;
+    if (item.quantity < 0) item.quantity = 0;
+    await item.save();
+    res.status(200).json(item);
+  } catch (error) {
+    req.status(500).json({ message: "Error updating quantity", error });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });

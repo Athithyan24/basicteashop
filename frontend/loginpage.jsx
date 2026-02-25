@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 const LoginPage = () => {
@@ -7,6 +7,21 @@ const LoginPage = () => {
   const [error, setError] = useState("");
   const [isloading, setisloading] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(()=>{
+    fetchallItems()
+  },[])
+
+  const fetchallItems=async()=>{
+    try{
+      const response=await fetch("http://localhost:5000/backend/server")
+      const data = response.json();
+      setInventory(data);
+    }
+    catch(error){
+      console.error({message:"failed to fetch Data"}, error)
+    }
+  }
 
   const handleLoading = async (e) => {
     e.preventDefault();
