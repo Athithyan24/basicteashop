@@ -22,9 +22,12 @@ const LoginPage = () => {
         body: JSON.stringify({ username, password }),
       });
       const data = await response.json();
+      
       if (response.ok) {
         if (data.token) {
-          localStorage.setItem("authToken", data.token);
+          localStorage.setItem("token", data.token);
+          localStorage.setItem("role", data.role);
+          localStorage.setItem("username", username);
         }
         navigate("/admin");
       } else {
@@ -38,6 +41,7 @@ const LoginPage = () => {
   };
 
   return (
+    
     <div
       style={{
         maxWidth: "300px",
@@ -45,9 +49,17 @@ const LoginPage = () => {
         fontFamily: "sans-serif",
       }}
     >
-      <h2>powered by</h2>
-      <h1>InfoZenX IT</h1>
-      <h2>Login</h2>
+      <div className="flex-col flex">
+      <div className="justify-center content-center mb-10">
+        
+      <h2 className="text-sm font-sans">powered by</h2>
+      <h1 className="text-4xl font-semibold">InfoZenX IT</h1>
+      </div>
+
+      <div className="flex justify-center">
+      <h2 className="text-2xl font-semibold">Login</h2>
+      </div>
+      </div>
 
       {error && (
         <div style={{ color: "red", marginBottom: "10px" }}>{error}</div>
@@ -56,12 +68,14 @@ const LoginPage = () => {
       <form onSubmit={handleLoading}>
         <div style={{ marginBottom: "15px" }}>
           <label
+            className="font-sans"
             htmlFor="username"
             style={{ display: "block", marginBottom: "5px" }}
           >
             Username:
           </label>
           <input
+            className="rounded-4xl border "
             type="text"
             id="username"
             value={username}
@@ -73,12 +87,14 @@ const LoginPage = () => {
 
         <div style={{ marginBottom: "15px" }}>
           <label
+            className="font-sans"
             htmlFor="password"
             style={{ display: "block", marginBottom: "5px" }}
           >
             Password:
           </label>
           <input
+          className="border rounded-4xl "
             type="password"
             id="password"
             value={password}
@@ -88,17 +104,17 @@ const LoginPage = () => {
           />
         </div>
 
+        <div className="flex justify-center items-center">
         <button
+         className="bg-green-500 px-5 rounded-3xl py-1"
           type="submit"
           disabled={isloading}
           style={{
-            width: "100%",
-            padding: "10px",
             cursor: isloading ? "not-allowed" : "pointer",
           }}
         >
           {isloading ? "Logging in..." : "Login"}
-        </button>
+        </button></div>
       </form>
     </div>
   );
