@@ -51,9 +51,9 @@ const AdminPage = () => {
   };
 
   return (
+    <div className='bg-emerald-300'>
     <div className="max-w-150 mx-auto my-10 font-sans relative">
       
-  {/* Header Section */}
   <div className="flex justify-between items-center border-b-2 border-gray-300 pb-3 mb-5">
     <div>
       <h1 className="m-0 text-3xl font-bold">{adminName} Dashboard</h1>
@@ -179,6 +179,7 @@ const AdminPage = () => {
     </div>
   )}
 
+</div>
 </div>
   );
 };

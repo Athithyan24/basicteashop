@@ -56,13 +56,10 @@ const LoginPage = () => {
   };
 
   return (
-    
+    <div className="bg-amber-200 mx-120 my-20">
     <div
-      style={{
-        maxWidth: "300px",
-        margin: "50px auto",
-        fontFamily: "sans-serif",
-      }}
+    className="p-50 "
+  
     >
       <div className="flex-col flex">
       <div className="justify-center content-center mb-10">
@@ -131,6 +128,7 @@ const LoginPage = () => {
           {isloading ? "Logging in..." : "Login"}
         </button></div>
       </form>
+    </div>
     </div>
   );
 };
