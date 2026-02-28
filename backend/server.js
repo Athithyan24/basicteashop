@@ -12,7 +12,8 @@ mongoose.connect(process.env.MONGO_URI)
 
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
-  password: { type: String, required: true }, 
+  password: { type: String, required: true },
+  shoptype:{type: String, require:true}, 
   role: { type: String, enum: ['superadmin', 'shopadmin'], default: 'shopadmin' }
 });
 const User = mongoose.model("User", userSchema);
@@ -64,16 +65,54 @@ app.post("/backend/server", async (req, res) => {
     const user = await User.findOne({ username, password });
     if (user) {
       const token = jwt.sign(
-        { id: user._id, username: user.username, role: user.role},
+        { id: user._id, username: user.username, role: user.role },
         SECRET_KEY,
         { expiresIn: "8h" }
       );
-      res.status(200).json({ message: "Login Successful!", token, role: user.role });
+      res.status(200).json({ 
+        message: "Login Successful!", 
+        token, 
+        role: user.role,
+        username: user.username,
+        shoptype: user.shoptype 
+      });
     } else {
       res.status(400).json({ message: "Invalid username or password" });
     }
   } catch (error) {
     res.status(500).json({ message: "Server error during login", error });
+  }
+});
+
+app.post('/app/checkout', authenticateToken, async (req, res) => {
+  const { billItems } = req.body; 
+
+  if (!billItems || billItems.length === 0) {
+    return res.status(400).json({ message: "No items in the bill." });
+  }
+
+  try {
+    for (let item of billItems) {
+      const dbItem = await Item.findById(item._id);
+      
+      if (!dbItem) {
+        return res.status(404).json({ message: `Item ${item.name} not found.` });
+      }
+
+      if (dbItem.quantity < item.billQty) {
+        return res.status(400).json({ 
+          message: `Not enough stock for ${item.name}. Only ${dbItem.quantity} left.` 
+        });
+      }
+
+      dbItem.quantity -= item.billQty;
+      await dbItem.save();
+    }
+
+    res.status(200).json({ message: "Checkout successful, stock deducted!" });
+  } catch (error) {
+    console.error("Checkout error:", error);
+    res.status(500).json({ message: "Server error during checkout", error });
   }
 });
 
@@ -127,12 +166,25 @@ app.post('/app/users', authenticateToken, async (req, res) => {
   }
 
   try {
-    const { username, password } = req.body;
-    const newUser = new User({ username, password, role: 'shopadmin' });
+    const { username, password, shoptype } = req.body;
+    const newUser = new User({ username, password, shoptype, role: 'shopadmin' });
     await newUser.save();
     res.status(201).json({ message: `Shop Admin '${username}' created successfully!` });
   } catch (error) {
     res.status(500).json({ message: "Error creating user. Username might already exist.", error });
+  }
+});
+
+app.get('/app/users', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'superadmin') {
+    return res.status(403).json({ message: "Only Super Admins can view users." });
+  }
+
+  try {
+    const users = await User.find({ role: 'shopadmin' }).select('-password');
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching users", error });
   }
 });
 

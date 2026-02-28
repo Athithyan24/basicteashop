@@ -3,6 +3,7 @@ import "./App.css";
 import LoginPage from "../frontend/loginpage";
 import ProtectedRoute from "../frontend/ProtectedRouts";
 import Adminpage from "../frontend/admin";
+import ShopAdministration from "../frontend/ShopAdmin";
 
 function App() {
   return (
@@ -18,6 +19,14 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+  path="/ShopAdmin"
+  element={
+    <ProtectedRoute>
+      <ShopAdministration />
+    </ProtectedRoute>
+  }
+/>
         </Routes>
       </Router>
     </>
