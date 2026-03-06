@@ -1,19 +1,26 @@
-import dotenv from "dotenv";
 import express from "express";
+import dotenv from "dotenv";
 import cors from "cors";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 
 dotenv.config();
+const app = express();
+const PORT = 5000;
+const SECRET_KEY = process.env.SECRET_KEY || "fallback_secret_key"; 
 
+app.use(cors());
+app.use(express.json());
+   
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("Connected to MongoDB Successfully"))
   .catch((err) => console.log("Failed to connect to MongoDB", err));
 
+// --- SCHEMAS ---
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  shoptype:{type: String, require:true}, 
+  shoptype: { type: String, required: true }, 
   role: { type: String, enum: ['superadmin', 'shopadmin'], default: 'shopadmin' }
 });
 const User = mongoose.model("User", userSchema);
@@ -23,27 +30,23 @@ const itemSchema = new mongoose.Schema({
   price: { type: Number, required: true },
   quantity: { type: Number, required: true },
   sup_no: { type: Number, required: true},
-  shoptype: { type: String, required: true},
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true } 
 });
 const Item = mongoose.model("Item", itemSchema);
 
-const app = express();
-const PORT = 5000;
-const SECRET_KEY = process.env.SECRET_KEY || "fallback_secret_key"; 
 
-app.use(cors());
-app.use(express.json());
-
+// --- INIT ---
 const createSuperAdmin = async () => {
   const adminExists = await User.findOne({ username: "admin" });
   if (!adminExists) {
-    await User.create({ username: "admin", password: "adminpassword", role: "superadmin" });
+    await User.create({ username: "admin", password: "adminpassword", role: "superadmin", shoptype: "Headquarters" });
     console.log("Super Admin account created! Username: admin | Password: adminpassword");
   }
 };
 createSuperAdmin();
 
+
+// --- MIDDLEWARE ---
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; 
@@ -58,6 +61,9 @@ const authenticateToken = (req, res, next) => {
 };
 
 
+// --- ROUTES ---
+
+// Login
 app.post("/backend/server", async (req, res) => {
   const { username, password } = req.body;
   
@@ -84,6 +90,7 @@ app.post("/backend/server", async (req, res) => {
   }
 });
 
+// Checkout (Billing)
 app.post('/app/checkout', authenticateToken, async (req, res) => {
   const { billItems } = req.body; 
 
@@ -116,13 +123,16 @@ app.post('/app/checkout', authenticateToken, async (req, res) => {
   }
 });
 
+// Get Inventory
 app.get('/app/inventory', authenticateToken, async (req, res) => {
   try {
     let items;
     if (req.user.role === 'superadmin') {
-      items = await Item.find().populate('owner', 'username'); 
+      // FIX: Added shoptype to populate for superadmin
+      items = await Item.find().populate('owner', 'username shoptype'); 
     } else {
-      items = await Item.find({ owner: req.user.id });
+      // FIX: Added populate for shopadmin so frontend can display item.owner.shoptype
+      items = await Item.find({ owner: req.user.id }).populate('owner', 'username shoptype');
     }
     res.status(200).json(items);
   } catch (error) {
@@ -130,10 +140,11 @@ app.get('/app/inventory', authenticateToken, async (req, res) => {
   }
 });
 
+// Add Item
 app.post('/app/inventory', authenticateToken, async (req, res) => {
   try {
-      const { name, price, quantity,sup_no,shoptype } = req.body;
-      const newItem = new Item({ name, price, quantity, sup_no,shoptype, owner: req.user.id });
+      const { name, price, quantity, sup_no } = req.body;
+      const newItem = new Item({ name, price, quantity, sup_no, owner: req.user.id });
       const savedItem = await newItem.save();
       res.status(200).json(savedItem);
   } catch (error) {
@@ -141,6 +152,7 @@ app.post('/app/inventory', authenticateToken, async (req, res) => {
   }
 });
 
+// Update Item Quantity
 app.put('/app/inventory/:id', authenticateToken, async (req, res) => {
   try {
     const foundItem = await Item.findById(req.params.id);
@@ -160,6 +172,7 @@ app.put('/app/inventory/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Create Shop Admin User
 app.post('/app/users', authenticateToken, async (req, res) => {
   if (req.user.role !== 'superadmin') {
     return res.status(403).json({ message: "Only Super Admins can create users." });
@@ -175,6 +188,7 @@ app.post('/app/users', authenticateToken, async (req, res) => {
   }
 });
 
+// Get Shop Admin Users
 app.get('/app/users', authenticateToken, async (req, res) => {
   if (req.user.role !== 'superadmin') {
     return res.status(403).json({ message: "Only Super Admins can view users." });
@@ -185,6 +199,22 @@ app.get('/app/users', authenticateToken, async (req, res) => {
     res.status(200).json(users);
   } catch (error) {
     res.status(500).json({ message: "Error fetching users", error });
+  }
+});
+
+// Get My Profile
+app.get('/app/me', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if(!user) return res.status(404).json({message: "User not found"});
+
+    res.status(200).json({
+      username: user.username,
+      shoptype: user.shoptype
+    });
+  }
+  catch(error){
+    res.status(500).json({message: "Error fetching user profile", error})
   }
 });
 

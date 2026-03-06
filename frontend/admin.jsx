@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import settingsicon from "../src/assets/cogwheel.png";
-import ShopAdministration from "./ShopAdmin";
 
 const AdminPage = () => {
   const navigate = useNavigate();
@@ -9,7 +8,7 @@ const AdminPage = () => {
   const token = localStorage.getItem("token");
   const role = localStorage.getItem("role");
   const currentUsername = localStorage.getItem("username") || "User";
-  const ShopType= localStorage.getItem("shoptype")  || "User";
+  const ShopType = localStorage.getItem("shoptype") || "Unknown Shop";
 
   const [users, setUsers] = useState([]);
   const [supplierPhoneNum, setSupPhoNo] = useState("");
@@ -21,7 +20,6 @@ const AdminPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
-  // const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newShoptype, setNewShopType] = useState("");
@@ -79,12 +77,12 @@ const AdminPage = () => {
     e.preventDefault();
     if (!newItemName || !newItemPrice) return;
 
+    // REMOVED shoptype because the backend handles it via the user ID
     const newItemData = {
       sup_no: parseInt(supplierPhoneNum),
       name: newItemName,
       price: parseFloat(newItemPrice),
       quantity: parseInt(newItemQuantity, 10),
-      shoptype: ShopType,
     };
 
     try {
@@ -148,7 +146,9 @@ const AdminPage = () => {
         alert(`Shop Admin '${newUsername}' created successfully!`);
         setNewUsername("");
         setNewPassword("");
+        setNewShopType(""); // Clear the shop type field too
         setIsUserModalOpen(false);
+        fetchUsers(); // Refresh the list of users
       } else {
         const data = await response.json();
         alert(`Error: ${data.message}`);
@@ -162,15 +162,16 @@ const AdminPage = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
     localStorage.removeItem("username");
+    localStorage.removeItem("shoptype");
     navigate("/");
   };
 
-  const handleProceed =()=>{
-    navigate("/ShopAdmin")
-  }
+  const handleProceed = () => {
+    navigate("/ShopAdmin");
+  };
 
   return (
-    <div className="max-w-175 mx-auto my-10 font-sans relative">
+    <div className="max-w-[1800px] mx-auto my-10 px-5 font-sans relative">
       <div className="flex justify-between items-center border-b-2 border-gray-300 pb-3 mb-5">
         <div>
           {role === "superadmin" ? (
@@ -187,11 +188,9 @@ const AdminPage = () => {
             </>
           ) : (
             <>
-              {" "}
+              {/* Removed the empty users.map that was causing bugs here */}
               <h1 className="m-0 text-3xl font-bold">
-                {role === "shopadmin" && currentUsername
-                  ? `${currentUsername} ${ShopType}`
-                  : "Admin Dashboard"}
+                {currentUsername} {ShopType}
               </h1>
               <p className="m-0 text-gray-500">Owner: {currentUsername}</p>
             </>
@@ -207,12 +206,15 @@ const AdminPage = () => {
             </button>
           )}
 
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="bg-transparent border-none cursor-pointer hover:scale-110 transition-transform"
-            title="Add New Stock Item">
-            <img src={settingsicon} alt="Settings" className="w-8 h-8" />
-          </button>
+          {/* Only shop admins need to add stock to their specific shop */}
+          {role === "shopadmin" && (
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="bg-transparent border-none cursor-pointer hover:scale-110 transition-transform"
+              title="Add New Stock Item">
+              <img src={settingsicon} alt="Settings" className="w-8 h-8" />
+            </button>
+          )}
 
           <button
             onClick={handleLogout}
@@ -222,25 +224,29 @@ const AdminPage = () => {
         </div>
       </div>
 
-      {role==="superadmin" && (<h3 className="text-xl font-semibold mb-3">Current Customers</h3>)}
-      {role==="shopadmin" && (<h3 className="text-xl font-semibold mb-3">தற்போதைய இருப்பு</h3>)}
+      {role === "superadmin" && (<h3 className="text-xl font-semibold mb-3">Current Customers</h3>)}
+      {role === "shopadmin" && (<h3 className="text-xl font-semibold mb-3">தற்போதைய இருப்பு</h3>)}
+      
       <div className="flex gap-3 items-center">
         {role === "superadmin" && (
-          <div className="flex flex-col mb-8">
+          <div className="flex flex-col mb-8 w-full">
             <h3 className="text-xl font-semibold mb-3">Shop Admins</h3>
-            <div className="border border-blue-200 rounded-md p-4">
+            <div className="border border-blue-200 rounded-md p-4 w-full">
               {users.length === 0 ? (
                 <p className="text-gray-500 italic">
                   No shop admins created yet.
                 </p>
               ) : (
-                <div className="grid lg:grid-cols-4 gap-5 m-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-5 m-4">
                   {users.map((user) => (
                     <div
                       key={user._id}
-                      className="hover:scale-110 duration-150 flex justify-center items-center bg-white p-2 rounded border border-blue-100 shadow-sm">
-                      <span className="font-bold text-lg text-blue-800 p-5">
+                      className="hover:scale-110 duration-150 flex flex-col justify-center items-center bg-white p-4 rounded border border-blue-100 shadow-sm text-center">
+                      <span className="font-bold text-lg text-blue-800">
                         {user.username}
+                      </span>
+                      <span className="text-xs text-gray-500 mt-1">
+                        {user.shoptype}
                       </span>
                     </div>
                   ))}
@@ -249,18 +255,14 @@ const AdminPage = () => {
             </div>
           </div>
         )}
+
         {role === "shopadmin" && inventory.length === 0 ? (
-          <p className="text-gray-500 italic">
+          <p className="text-gray-500 italic w-full">
             Your stock is empty. Add some items!
           </p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-20">
-            {role === "shopadmin" && inventory.length === 0 ? (
-              <p className="text-gray-500 italic col-span-full">
-                Your stock is empty. Add some items!
-              </p>
-            ) : (
-              role === "shopadmin" &&
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-20 w-full">
+            {role === "shopadmin" &&
               inventory.map((item) => (
                 <div
                   key={item._id}
@@ -273,7 +275,8 @@ const AdminPage = () => {
                       சப்ளையர் எண்: {item.sup_no}
                     </span>
                     <span className="text-xs text-gray-600">
-                      Shop: {item.shoptype}
+                      {/* UPDATED: Pulls shoptype from the populated backend owner data */}
+                      Shop: {item.owner?.shoptype || "Unknown"}
                     </span>
                   </div>
 
@@ -303,21 +306,23 @@ const AdminPage = () => {
                     </div>
                   </div>
                 </div>
-              ))
-            )}
-            
+              ))}
           </div>
         )}
       </div>
 
-        {role==='shopadmin' && (<div className="flex justify-center">
-              <button onClick={handleProceed} className="bg-green-400 p-2 rounded-xl">தொடரவும்</button>
-            </div>)}
-      
+      {role === 'shopadmin' && (
+        <div className="flex justify-center mt-6">
+          <button onClick={handleProceed} className="bg-green-500 text-white font-bold px-8 py-3 rounded-xl hover:bg-green-600 transition-colors shadow-md">
+            தொடரவும்
+          </button>
+        </div>
+      )}
 
+      {/* MODAL: ADD STOCK ITEM */}
       {isModalOpen && (
         <div className="fixed inset-0 w-screen h-screen bg-black/60 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded-lg w-[90%] max-w-100 shadow-xl">
+          <div className="bg-white p-6 rounded-lg w-[90%] max-w-md shadow-xl">
             <div className="flex justify-between items-center mb-4">
               <h3 className="m-0 text-xl font-bold">Add New Stock Item</h3>
               <button
@@ -327,7 +332,6 @@ const AdminPage = () => {
               </button>
             </div>
             <form onSubmit={handleAddItem} className="flex flex-col gap-4">
-              
               <div>
                 <label className="block mb-1 text-sm font-medium">
                   Supplier No:
@@ -355,7 +359,7 @@ const AdminPage = () => {
               <div className="flex gap-3">
                 <div className="flex-1">
                   <label className="block mb-1 text-sm font-medium">
-                    Price ($):
+                    Price (₹):
                   </label>
                   <input
                     type="number"
@@ -381,7 +385,7 @@ const AdminPage = () => {
               </div>
               <button
                 type="submit"
-                className="p-2.5 bg-green-500 text-white rounded cursor-pointer text-base mt-2 hover:bg-green-600 transition-colors">
+                className="p-2.5 bg-green-500 text-white font-bold rounded cursor-pointer text-base mt-2 hover:bg-green-600 transition-colors">
                 Save Item
               </button>
             </form>
@@ -389,9 +393,10 @@ const AdminPage = () => {
         </div>
       )}
 
+      {/* MODAL: CREATE SHOP ADMIN */}
       {isUserModalOpen && role === "superadmin" && (
         <div className="fixed inset-0 w-screen h-screen bg-black/60 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded-lg w-[90%] max-w-100 shadow-xl">
+          <div className="bg-white p-6 rounded-lg w-[90%] max-w-md shadow-xl">
             <div className="flex justify-between items-center mb-4">
               <h3 className="m-0 text-xl font-bold text-blue-600">
                 Create Shop Admin
@@ -405,7 +410,7 @@ const AdminPage = () => {
             <form onSubmit={handleCreateUser} className="flex flex-col gap-4">
               <div>
                 <label className="block mb-1 text-sm font-medium">
-                  Shop Type:
+                  Shop Type / Branch Name:
                 </label>
                 <input
                   type="text"
@@ -441,7 +446,7 @@ const AdminPage = () => {
               </div>
               <button
                 type="submit"
-                className="p-2.5 bg-blue-500 text-white rounded cursor-pointer text-base mt-2 hover:bg-blue-600 transition-colors">
+                className="p-2.5 bg-blue-500 text-white font-bold rounded cursor-pointer text-base mt-2 hover:bg-blue-600 transition-colors">
                 Create User
               </button>
             </form>

@@ -7,32 +7,29 @@ export default function ShopAdministration() {
   const token = localStorage.getItem("token");
   const role = localStorage.getItem("role");
   const currentUsername = localStorage.getItem("username") || "User";
-  const shoptype = localStorage.getItem("shoptype") || "User"; 
 
   const [inventory, setInventory] = useState([]);
-  const [users, setUsers] = useState([]); 
-  
-  // Add Stock States
-  const [supplierPhoneNum, setSupPhoNo] = useState("");
-  const [newItemName, setNewItemName] = useState("");
-  const [newItemPrice, setNewItemPrice] = useState("");
-  const [newItemQuantity, setNewItemQuantity] = useState("");
-
   const [billItems, setBillItems] = useState([]);
+  const [shoptype, setShoptype] = useState("Loading....");
 
   const apiHeaders = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
   };
 
-  useEffect(() => {
-    if (!token) {
-      navigate("/");
-      return;
+  const fetchProfile = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/app/me", {
+        headers: apiHeaders, // FIX: Changed 'header' to 'headers'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setShoptype(data.shoptype);
+      }
+    } catch (err) {
+      console.error("Failed to fetch Profile:", err);
     }
-    fetchInventory();
-    fetchUsers();
-  }, [navigate, token]);
+  };
 
   const fetchInventory = async () => {
     try {
@@ -50,83 +47,24 @@ export default function ShopAdministration() {
     }
   };
 
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch("http://localhost:5000/app/users", {
-        headers: apiHeaders,
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data);
-      } else {
-        console.error("failed to load user");
-      }
-    } catch (error) {
-      console.error("Error fetching Users", error);
-    }
-  };
-
-  const handleAddItem = async (e) => {
-    e.preventDefault();
-    if (!newItemName || !newItemPrice) return;
-
-    const newItemData = {
-      sup_no: parseInt(supplierPhoneNum),
-      name: newItemName,
-      price: parseFloat(newItemPrice),
-      quantity: parseInt(newItemQuantity, 10),
-      shoptype: shoptype, 
-    };
-
-    try {
-      const response = await fetch("http://localhost:5000/app/inventory", {
-        method: "POST",
-        headers: apiHeaders,
-        body: JSON.stringify(newItemData),
-      });
-
-      if (response.ok) {
-        await fetchInventory();
-        setNewItemName("");
-        setNewItemPrice("");
-        setNewItemQuantity("");
-        setSupPhoNo("");
-      }
-    } catch (error) {
-      console.error("Error saving item:", error);
-    }
-  };
-
-  const updateQuantity = async (id, amount) => {
-    try {
-      const response = await fetch(`http://localhost:5000/app/inventory/${id}`, {
-        method: "PUT",
-        headers: apiHeaders,
-        body: JSON.stringify({ amount }),
-      });
-
-      if (response.ok) {
-        const updatedItem = await response.json();
-        setInventory((prev) =>
-          prev.map((item) =>
-            item._id === id ? { ...item, quantity: updatedItem.quantity } : item
-          )
-        );
-      }
-    } catch (error) {
-      console.error("Error updating quantity:", error);
-    }
-  };
-
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
     localStorage.removeItem("username");
+    localStorage.removeItem("shoptype");
     navigate("/");
   };
 
   const addToBill = (item) => {
+    // Check if we have enough stock before adding to bill
     const existingItem = billItems.find((bItem) => bItem._id === item._id);
+    const currentBillQty = existingItem ? existingItem.billQty : 0;
+
+    if (currentBillQty >= item.quantity) {
+      alert(`Not enough stock! Only ${item.quantity} available.`);
+      return;
+    }
+
     if (existingItem) {
       setBillItems(
         billItems.map((bItem) =>
@@ -140,104 +78,111 @@ export default function ShopAdministration() {
     }
   };
 
+  // NEW: Function to send the checkout request to the backend
+  const handlePrintBill = async () => {
+    if (billItems.length === 0) return alert("Bill is empty!");
+
+    try {
+      const response = await fetch("http://localhost:5000/app/checkout", {
+        method: "POST",
+        headers: apiHeaders,
+        body: JSON.stringify({ billItems }),
+      });
+
+      if (response.ok) {
+        alert("Transaction Successful! Stock updated.");
+        setBillItems([]); // Clear the bill for the next customer
+        fetchInventory(); // Refresh stock quantities on the screen
+      } else {
+        const data = await response.json();
+        alert(`Checkout failed: ${data.message}`);
+      }
+    } catch (error) {
+      console.error("Error during checkout:", error);
+    }
+  };
+
   const billTotal = billItems.reduce(
     (sum, item) => sum + item.price * item.billQty,
     0
   );
 
+  useEffect(() => {
+    if (!token) {
+      navigate("/");
+      return;
+    }
+    fetchInventory();
+    fetchProfile();
+    // Removed fetchUsers() because billing page doesn't need to see other admins
+  }, [navigate, token]);
+
   return (
     <div className="max-w-[1800px] mx-auto my-5 px-5 font-sans relative">
-      
       <div className="flex justify-between items-center border-b-2 border-gray-300 pb-3 mb-6">
         <div>
           <h1 className="m-0 text-3xl font-bold text-blue-800">
             {role === "shopadmin" && currentUsername
-              ? `${currentUsername} ${shoptype}`
+              ? `${currentUsername} - ${shoptype}`
               : "Admin Dashboard"}
           </h1>
-          <p className="m-0 text-gray-500">Owner: {currentUsername}</p>
+          <p className="m-0 text-gray-500">Billing Counter</p>
         </div>
-        <button
-          onClick={handleLogout}
-          className="px-4 py-2 bg-red-500 text-white font-semibold rounded hover:bg-red-600 transition"
-        >
-          Logout
-        </button>
+        
+        <div className="flex gap-4">
+          <button
+            onClick={() => navigate("/admin")}
+            className="px-4 py-2 bg-gray-500 text-white font-semibold rounded hover:bg-gray-600 transition"
+          >
+            Back to Inventory
+          </button>
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 bg-red-500 text-white font-semibold rounded hover:bg-red-600 transition"
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col xl:flex-row gap-6 items-start">
         
-        <div className="w-full xl:w-1/4 bg-white border border-gray-200 rounded-lg p-5 shadow-sm sticky top-5">
-          <h3 className="text-xl font-bold mb-4 border-b pb-2 text-gray-700">Add New Stock</h3>
-          
-          <form onSubmit={handleAddItem} className="flex flex-col gap-4">
-            <div>
-              <label className="block mb-1 text-sm font-medium">Supplier No:</label>
-              <input type="number" value={supplierPhoneNum} onChange={(e) => setSupPhoNo(e.target.value)} required
-                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
-            </div>
-            <div>
-              <label className="block mb-1 text-sm font-medium">Item Name:</label>
-              <input type="text" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} required
-                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
-            </div>
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <label className="block mb-1 text-sm font-medium">Price (₹):</label>
-                <input type="number" step="0.01" value={newItemPrice} onChange={(e) => setNewItemPrice(e.target.value)} required
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
-              </div>
-              <div className="flex-1">
-                <label className="block mb-1 text-sm font-medium">Init Qty:</label>
-                <input type="number" value={newItemQuantity} onChange={(e) => setNewItemQuantity(e.target.value)} required
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
-              </div>
-            </div>
-            <button type="submit" className="w-full py-2.5 bg-blue-600 text-white font-bold rounded mt-2 hover:bg-blue-700 transition-colors">
-              Save Item
-            </button>
-          </form>
-        </div>
+        {/* INVENTORY LIST (Takes up more space now since Add Stock is gone) */}
+        <div className="w-full xl:w-2/3">
+          <h3 className="text-xl font-bold mb-4 border-b pb-2 text-gray-700">Available Items</h3>
 
-        <div className="w-full xl:w-2/4">
-          <h3 className="text-xl font-bold mb-4 border-b pb-2 text-gray-700">Current Inventory</h3>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {inventory.length === 0 ? (
-              <p className="text-gray-500 italic">Your stock is empty.</p>
+              <p className="text-gray-500 italic">No stock available. Please add items from the Inventory page.</p>
             ) : (
               inventory.map((item) => (
-                <div key={item._id} className="flex flex-col justify-between p-4 border border-gray-200 rounded shadow-sm bg-white hover:shadow-md transition">
+                <div 
+                  onClick={() => addToBill(item)} 
+                  key={item._id} 
+                  className="cursor-pointer flex flex-col justify-between p-4 border border-gray-200 rounded shadow-sm bg-white hover:shadow-md hover:border-blue-300 transition"
+                >
                   <div>
                     <strong className="text-lg block truncate">{item.name}</strong>
-                    <span className="text-xs text-blue-600 block mb-1">Supplier: {item.sup_no}</span>
-                    <span className="text-md font-medium text-gray-800">₹{item.price}</span>
+                    <span className="text-md font-bold text-green-700">₹{item.price}</span>
                   </div>
 
                   <div className="flex justify-between items-center mt-4 pt-3 border-t">
-                    <span className="font-semibold text-gray-600">Qty: {item.quantity}</span>
-                    <div className="flex gap-2">
-                      <button onClick={() => updateQuantity(item._id, -1)} className="px-3 py-1 bg-gray-100 border rounded hover:bg-gray-200 font-bold">-</button>
-                      <button onClick={() => updateQuantity(item._id, 1)} className="px-3 py-1 bg-gray-100 border rounded hover:bg-gray-200 font-bold">+</button>
-                    </div>
+                    <span className={`font-semibold ${item.quantity > 0 ? 'text-gray-600' : 'text-red-500'}`}>
+                      {item.quantity > 0 ? `Qty: ${item.quantity}` : "Out of Stock"}
+                    </span>
                   </div>
-
-                  <button onClick={() => addToBill(item)} className="mt-3 w-full py-2 bg-green-50 text-green-700 border border-green-200 rounded font-bold hover:bg-green-500 hover:text-white transition-colors">
-                    Add to Bill
-                  </button>
                 </div>
               ))
             )}
           </div>
         </div>
 
-        <div className="w-full xl:w-1/4 flex justify-center sticky top-5">
-          
-          <div className="w-full max-w-sm bg-white p-6 shadow-2xl border border-gray-200 font-mono text-sm relative">
-            
+        {/* BILLING SECTION (Receipt) */}
+        <div className="w-full xl:w-1/3 flex justify-center sticky top-5">
+          <div className="w-full max-w-md bg-white p-6 shadow-2xl border border-gray-200 font-mono text-sm relative">
             <div className="text-center mb-4">
               <h2 className="text-2xl font-bold uppercase tracking-widest">{shoptype || "YOUR SHOP"}</h2>
-              <p className="text-gray-500 mt-1 uppercase">Owner: {currentUsername}</p>
+              <p className="text-gray-500 mt-1 uppercase">Cashier: {currentUsername}</p>
               <p className="text-gray-500 text-xs mt-1">{new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}</p>
             </div>
 
@@ -251,9 +196,9 @@ export default function ShopAdministration() {
             
             <div className="border-b-2 border-dashed border-gray-400 mb-4"></div>
 
-            <div className="min-h-[150px] max-h-[300px] overflow-y-auto mb-4">
+            <div className="min-h-[150px] max-h-[400px] overflow-y-auto mb-4">
               {billItems.length === 0 ? (
-                <p className="text-center text-gray-400 italic mt-10">Scan or add items...</p>
+                <p className="text-center text-gray-400 italic mt-10">Scan or click items to add...</p>
               ) : (
                 billItems.map((billedItem, index) => (
                   <div key={index} className="flex justify-between mb-3 text-gray-800">
@@ -282,10 +227,11 @@ export default function ShopAdministration() {
 
             <div className="flex flex-col gap-2 border-t pt-4">
               <button 
-                className="w-full py-2 bg-gray-900 text-white font-bold rounded hover:bg-black transition-colors"
-                onClick={() => alert("Printing Receipt...")}
+                className={`w-full py-3 text-white font-bold rounded transition-colors ${billItems.length > 0 ? 'bg-gray-900 hover:bg-black' : 'bg-gray-400 cursor-not-allowed'}`}
+                onClick={handlePrintBill}
+                disabled={billItems.length === 0}
               >
-                PRINT BILL
+                PRINT BILL & CHECKOUT
               </button>
               <button 
                 className="w-full py-2 bg-red-100 text-red-600 font-bold rounded hover:bg-red-200 transition-colors"
@@ -294,7 +240,6 @@ export default function ShopAdministration() {
                 VOID TRANSACTION
               </button>
             </div>
-
           </div>
         </div>
 
